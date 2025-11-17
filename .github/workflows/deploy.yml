@@ -1,0 +1,49 @@
+name: Deploy GitHub Pages
+
+on:
+  # 当 crawler 自动提交代码后触发
+  push:
+    branches:
+      - main   # 或者 你的默认分支，如 master
+
+  # 手动触发
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 如果你需要构建静态文件（例如 Python 生成 HTML），在这里添加构建步骤
+      # 一般 crawler 已经生成好了，这里只需要 copy 就行
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./output   # GitHub Pages 要发布的目录（重要）
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v2
