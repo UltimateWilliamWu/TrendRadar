@@ -9,8 +9,6 @@ on:
     workflows: ["Hot News Crawler"]
     types: [completed]
 
-
-
 permissions:
   contents: read
   pages: write
