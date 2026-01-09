@@ -1,0 +1,124 @@
+# 财经定制示例（聚焦股市与宏观）
+
+app:
+  timezone: "Asia/Shanghai"
+  show_version_update: true
+
+platforms:
+  - id: "wallstreetcn-hot"   # 华尔街见闻
+  - id: "cls-hot"            # 财联社
+  - id: "baidu"              # 百度热搜
+  - id: "toutiao"            # 今日头条
+  - id: "zhihu"              # 知乎热榜
+  - id: "weibo"              # 微博热搜
+
+rss:
+  enabled: true
+  freshness_filter:
+    enabled: true
+    max_age_days: 3
+  feeds:
+    - id: "reuters-cn-bus"
+      name: "路透中文-财经"
+      url: "https://cn.reuters.com/rssFeed/CNBusFinNews"
+    - id: "reuters-cn-top"
+      name: "路透中文-要闻"
+      url: "https://cn.reuters.com/rssFeed/CNTopGenNews"
+    - id: "ftchinese"
+      name: "FT 中文网"
+      url: "https://www.ftchinese.com/rss/feed"
+    - id: "wsj-markets"
+      name: "WSJ Markets"
+      url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+    - id: "bloomberg-cn"
+      name: "彭博中国财经"
+      url: "https://www.bloombergchina.com/feed/"
+      enabled: false          # 若无法访问，可保持关闭
+
+report:
+  mode: "current"
+  display_mode: "keyword"
+  rank_threshold: 5
+  sort_by_position_first: false
+  max_news_per_keyword: 0
+  reverse_content_order: false
+
+notification:
+  enabled: false              # 如需推送请改为 true 并在 channels 中填入 Secrets
+  push_window:
+    enabled: false
+    start: "20:00"
+    end: "22:00"
+    once_per_day: true
+  channels:
+    feishu:
+      webhook_url: ""
+    dingtalk:
+      webhook_url: ""
+    wework:
+      webhook_url: ""
+      msg_type: "markdown"
+    telegram:
+      bot_token: ""
+      chat_id: ""
+    email:
+      from: ""
+      password: ""
+      to: ""
+      smtp_server: ""
+      smtp_port: ""
+    ntfy:
+      server_url: "https://ntfy.sh"
+      topic: ""
+      token: ""
+    bark:
+      url: ""
+    slack:
+      webhook_url: ""
+
+storage:
+  backend: "auto"
+  formats:
+    sqlite: true
+    txt: false
+    html: true
+  local:
+    data_dir: "output"
+    retention_days: 0
+  remote:
+    retention_days: 0
+    endpoint_url: ""
+    bucket_name: ""
+    access_key_id: ""
+    secret_access_key: ""
+    region: ""
+  pull:
+    enabled: false
+    days: 7
+
+advanced:
+  version_check_url: "https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version"
+  crawler:
+    enabled: true
+    request_interval: 1000
+    use_proxy: false
+    default_proxy: "http://127.0.0.1:10801"
+  rss:
+    request_interval: 2000
+    timeout: 15
+    use_proxy: false
+    proxy_url: ""
+    notification_enabled: true
+  weight:
+    rank: 0.6
+    frequency: 0.3
+    hotness: 0.1
+  max_accounts_per_channel: 3
+  batch_size:
+    default: 4000
+    dingtalk: 20000
+    feishu: 30000
+    bark: 4000
+    slack: 4000
+  batch_send_interval: 3
+  feishu_message_separator: "━━━━━━━━━━━━━━━━━━━━━━━━━━"
