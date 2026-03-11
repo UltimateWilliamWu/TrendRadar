@@ -1,6 +1,10 @@
 name: Deploy Pages
 
 on:
+  workflow_run:
+    workflows: ["Get Hot News"]
+    types:
+      - completed
   push:
     branches:
       - main
@@ -22,6 +26,12 @@ permissions:
 
 jobs:
   deploy:
+    if: |
+      github.event_name != 'workflow_run' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master')
+      )
     runs-on: ubuntu-latest
     environment:
       name: github-pages
