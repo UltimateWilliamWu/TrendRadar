@@ -279,11 +279,6 @@ def show_config():
         "CRON_SCHEDULE",
         "RUN_MODE",
         "IMMEDIATE_RUN",
-        # 核心配置
-        "ENABLE_CRAWLER",
-        "ENABLE_NOTIFICATION",
-        "REPORT_MODE",
-        "DISPLAY_MODE",
         # 通知渠道
         "FEISHU_WEBHOOK_URL",
         "DINGTALK_WEBHOOK_URL",
@@ -296,6 +291,12 @@ def show_config():
         "NTFY_TOKEN",
         "BARK_URL",
         "SLACK_WEBHOOK_URL",
+        # AI 分析配置
+        "AI_ANALYSIS_ENABLED",
+        "AI_API_KEY",
+        "AI_PROVIDER",
+        "AI_MODEL",
+        "AI_BASE_URL",
         # 远程存储配置
         "S3_BUCKET_NAME",
         "S3_ACCESS_KEY_ID",
