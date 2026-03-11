@@ -4,13 +4,25 @@ app:
   timezone: "Asia/Shanghai"
   show_version_update: true
 
+schedule:
+  enabled: false
+  preset: "always_on"
+
 platforms:
-  - id: "wallstreetcn-hot"   # 华尔街见闻
-  - id: "cls-hot"            # 财联社
-  - id: "baidu"              # 百度热搜
-  - id: "toutiao"            # 今日头条
-  - id: "zhihu"              # 知乎热榜
-  - id: "weibo"              # 微博热搜
+  enabled: true
+  sources:
+    - id: "wallstreetcn-hot"
+    - id: "wallstreetcn-quick"
+    - id: "wallstreetcn-news"
+    - id: "cls-hot"
+    - id: "gelonghui"
+    - id: "xueqiu"
+    - id: "jin10"
+    - id: "fastbull"
+    - id: "baidu"
+    - id: "toutiao"
+    - id: "zhihu"
+    - id: "weibo"
 
 rss:
   enabled: true
@@ -33,7 +45,7 @@ rss:
     - id: "bloomberg-cn"
       name: "彭博中国财经"
       url: "https://www.bloombergchina.com/feed/"
-      enabled: false          # 若无法访问，可保持关闭
+      enabled: false
 
 report:
   mode: "current"
@@ -44,12 +56,7 @@ report:
   reverse_content_order: false
 
 notification:
-  enabled: false              # 如需推送请改为 true 并在 channels 中填入 Secrets
-  push_window:
-    enabled: false
-    start: "20:00"
-    end: "22:00"
-    once_per_day: true
+  enabled: false
   channels:
     feishu:
       webhook_url: ""
@@ -75,6 +82,12 @@ notification:
       url: ""
     slack:
       webhook_url: ""
+    generic_webhook:
+      webhook_url: ""
+      payload_template: ""
+
+ai_analysis:
+  enabled: false
 
 storage:
   backend: "auto"
@@ -97,9 +110,11 @@ storage:
     days: 7
 
 advanced:
+  debug: false
   version_check_url: "https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version"
+  mcp_version_check_url: "https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version_mcp"
+  configs_version_check_url: "https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version_configs"
   crawler:
-    enabled: true
     request_interval: 1000
     use_proxy: false
     default_proxy: "http://127.0.0.1:10801"
@@ -108,7 +123,6 @@ advanced:
     timeout: 15
     use_proxy: false
     proxy_url: ""
-    notification_enabled: true
   weight:
     rank: 0.6
     frequency: 0.3

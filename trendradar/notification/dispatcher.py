@@ -10,7 +10,9 @@
     results = dispatcher.dispatch_all(report_data, report_type, ...)
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from trendradar.core.config import (
     get_account_at_index,
@@ -28,12 +30,17 @@ from .senders import (
     send_to_slack,
     send_to_telegram,
     send_to_wework,
+    send_to_generic_webhook,
 )
 from .renderer import (
     render_rss_feishu_content,
     render_rss_dingtalk_content,
     render_rss_markdown_content,
 )
+
+# 类型检查时导入，运行时不导入（避免循环导入）
+if TYPE_CHECKING:
+    from trendradar.ai import AIAnalysisResult, AITranslator
 
 
 class NotificationDispatcher:
@@ -49,6 +56,7 @@ class NotificationDispatcher:
         config: Dict[str, Any],
         get_time_func: Callable,
         split_content_func: Callable,
+        translator: Optional["AITranslator"] = None,
     ):
         """
         初始化通知调度器
@@ -57,11 +65,101 @@ class NotificationDispatcher:
             config: 完整的配置字典，包含所有通知渠道的配置
             get_time_func: 获取当前时间的函数
             split_content_func: 内容分批函数
+            translator: AI 翻译器实例（可选）
         """
         self.config = config
         self.get_time_func = get_time_func
         self.split_content_func = split_content_func
         self.max_accounts = config.get("MAX_ACCOUNTS_PER_CHANNEL", 3)
+        self.translator = translator
+
+    def _translate_content(
+        self,
+        report_data: Dict,
+        rss_items: Optional[List[Dict]] = None,
+        rss_new_items: Optional[List[Dict]] = None,
+    ) -> tuple:
+        """
+        翻译推送内容
+
+        Args:
+            report_data: 报告数据
+            rss_items: RSS 统计条目
+            rss_new_items: RSS 新增条目
+
+        Returns:
+            tuple: (翻译后的 report_data, rss_items, rss_new_items)
+        """
+        if not self.translator or not self.translator.enabled:
+            return report_data, rss_items, rss_new_items
+
+        import copy
+        print(f"[翻译] 开始翻译内容到 {self.translator.target_language}...")
+
+        # 深拷贝避免修改原始数据
+        report_data = copy.deepcopy(report_data)
+        rss_items = copy.deepcopy(rss_items) if rss_items else None
+        rss_new_items = copy.deepcopy(rss_new_items) if rss_new_items else None
+
+        # 收集所有需要翻译的标题
+        titles_to_translate = []
+        title_locations = []  # 记录标题位置，用于回填
+
+        # 1. 热榜标题
+        for stat_idx, stat in enumerate(report_data.get("stats", [])):
+            for title_idx, title_data in enumerate(stat.get("titles", [])):
+                titles_to_translate.append(title_data.get("title", ""))
+                title_locations.append(("stats", stat_idx, title_idx))
+
+        # 2. 新增热点标题
+        for source_idx, source in enumerate(report_data.get("new_titles", [])):
+            for title_idx, title_data in enumerate(source.get("titles", [])):
+                titles_to_translate.append(title_data.get("title", ""))
+                title_locations.append(("new_titles", source_idx, title_idx))
+
+        # 3. RSS 统计标题（结构与 stats 一致：[{word, count, titles: [{title, ...}]}]）
+        if rss_items:
+            for stat_idx, stat in enumerate(rss_items):
+                for title_idx, title_data in enumerate(stat.get("titles", [])):
+                    titles_to_translate.append(title_data.get("title", ""))
+                    title_locations.append(("rss_items", stat_idx, title_idx))
+
+        # 4. RSS 新增标题（结构与 stats 一致）
+        if rss_new_items:
+            for stat_idx, stat in enumerate(rss_new_items):
+                for title_idx, title_data in enumerate(stat.get("titles", [])):
+                    titles_to_translate.append(title_data.get("title", ""))
+                    title_locations.append(("rss_new_items", stat_idx, title_idx))
+
+        if not titles_to_translate:
+            print("[翻译] 没有需要翻译的内容")
+            return report_data, rss_items, rss_new_items
+
+        print(f"[翻译] 共 {len(titles_to_translate)} 条标题待翻译")
+
+        # 批量翻译
+        result = self.translator.translate_batch(titles_to_translate)
+
+        if result.success_count == 0:
+            print(f"[翻译] 翻译失败: {result.results[0].error if result.results else '未知错误'}")
+            return report_data, rss_items, rss_new_items
+
+        print(f"[翻译] 翻译完成: {result.success_count}/{result.total_count} 成功")
+
+        # 回填翻译结果
+        for i, (loc_type, idx1, idx2) in enumerate(title_locations):
+            if i < len(result.results) and result.results[i].success:
+                translated = result.results[i].translated_text
+                if loc_type == "stats":
+                    report_data["stats"][idx1]["titles"][idx2]["title"] = translated
+                elif loc_type == "new_titles":
+                    report_data["new_titles"][idx1]["titles"][idx2]["title"] = translated
+                elif loc_type == "rss_items" and rss_items:
+                    rss_items[idx1]["titles"][idx2]["title"] = translated
+                elif loc_type == "rss_new_items" and rss_new_items:
+                    rss_new_items[idx1]["titles"][idx2]["title"] = translated
+
+        return report_data, rss_items, rss_new_items
 
     def dispatch_all(
         self,
@@ -73,9 +171,11 @@ class NotificationDispatcher:
         html_file_path: Optional[str] = None,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> Dict[str, bool]:
         """
-        分发通知到所有已配置的渠道（支持热榜+RSS合并推送）
+        分发通知到所有已配置的渠道（支持热榜+RSS合并推送+AI分析+独立展示区）
 
         Args:
             report_data: 报告数据（由 prepare_report_data 生成）
@@ -86,55 +186,79 @@ class NotificationDispatcher:
             html_file_path: HTML 报告文件路径（邮件使用）
             rss_items: RSS 统计条目列表（用于 RSS 统计区块）
             rss_new_items: RSS 新增条目列表（用于 RSS 新增区块）
+            ai_analysis: AI 分析结果（可选）
+            standalone_data: 独立展示区数据（可选）
 
         Returns:
             Dict[str, bool]: 每个渠道的发送结果，key 为渠道名，value 为是否成功
         """
         results = {}
 
+        # 获取区域显示配置
+        display_regions = self.config.get("DISPLAY", {}).get("REGIONS", {})
+
+        # 执行翻译（如果启用）
+        report_data, rss_items, rss_new_items = self._translate_content(
+            report_data, rss_items, rss_new_items
+        )
+
         # 飞书
         if self.config.get("FEISHU_WEBHOOK_URL"):
             results["feishu"] = self._send_feishu(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
         # 钉钉
         if self.config.get("DINGTALK_WEBHOOK_URL"):
             results["dingtalk"] = self._send_dingtalk(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
         # 企业微信
         if self.config.get("WEWORK_WEBHOOK_URL"):
             results["wework"] = self._send_wework(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
         # Telegram（需要配对验证）
         if self.config.get("TELEGRAM_BOT_TOKEN") and self.config.get("TELEGRAM_CHAT_ID"):
             results["telegram"] = self._send_telegram(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
         # ntfy（需要配对验证）
         if self.config.get("NTFY_SERVER_URL") and self.config.get("NTFY_TOPIC"):
             results["ntfy"] = self._send_ntfy(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
         # Bark
         if self.config.get("BARK_URL"):
             results["bark"] = self._send_bark(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
         # Slack
         if self.config.get("SLACK_WEBHOOK_URL"):
             results["slack"] = self._send_slack(
-                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
             )
 
-        # 邮件（保持原有逻辑，已支持多收件人）
+        # 通用 Webhook
+        if self.config.get("GENERIC_WEBHOOK_URL"):
+            results["generic_webhook"] = self._send_generic_webhook(
+                report_data, report_type, update_info, proxy_url, mode, rss_items, rss_new_items,
+                ai_analysis, display_regions, standalone_data
+            )
+
+        # 邮件（保持原有逻辑，已支持多收件人，AI 分析已嵌入 HTML）
         if (
             self.config.get("EMAIL_FROM")
             and self.config.get("EMAIL_PASSWORD")
@@ -187,8 +311,16 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到飞书（多账号，支持热榜+RSS合并）"""
+        """发送到飞书（多账号，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        # 根据区域开关决定是否发送对应内容
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         return self._send_to_multi_accounts(
             channel_name="飞书",
             config_value=self.config["FEISHU_WEBHOOK_URL"],
@@ -204,8 +336,11 @@ class NotificationDispatcher:
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                 split_content_func=self.split_content_func,
                 get_time_func=self.get_time_func,
-                rss_items=rss_items,
-                rss_new_items=rss_new_items,
+                rss_items=rss_items if display_regions.get("RSS", True) else None,
+                rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                display_regions=display_regions,
+                standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
             ),
         )
 
@@ -218,8 +353,15 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到钉钉（多账号，支持热榜+RSS合并）"""
+        """发送到钉钉（多账号，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         return self._send_to_multi_accounts(
             channel_name="钉钉",
             config_value=self.config["DINGTALK_WEBHOOK_URL"],
@@ -234,8 +376,11 @@ class NotificationDispatcher:
                 batch_size=self.config.get("DINGTALK_BATCH_SIZE", 20000),
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                 split_content_func=self.split_content_func,
-                rss_items=rss_items,
-                rss_new_items=rss_new_items,
+                rss_items=rss_items if display_regions.get("RSS", True) else None,
+                rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                display_regions=display_regions,
+                standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
             ),
         )
 
@@ -248,8 +393,15 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到企业微信（多账号，支持热榜+RSS合并）"""
+        """发送到企业微信（多账号，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         return self._send_to_multi_accounts(
             channel_name="企业微信",
             config_value=self.config["WEWORK_WEBHOOK_URL"],
@@ -265,8 +417,11 @@ class NotificationDispatcher:
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                 msg_type=self.config.get("WEWORK_MSG_TYPE", "markdown"),
                 split_content_func=self.split_content_func,
-                rss_items=rss_items,
-                rss_new_items=rss_new_items,
+                rss_items=rss_items if display_regions.get("RSS", True) else None,
+                rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                display_regions=display_regions,
+                standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
             ),
         )
 
@@ -279,8 +434,15 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到 Telegram（多账号，需验证 token 和 chat_id 配对，支持热榜+RSS合并）"""
+        """发送到 Telegram（多账号，需验证 token 和 chat_id 配对，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         telegram_tokens = parse_multi_account_config(self.config["TELEGRAM_BOT_TOKEN"])
         telegram_chat_ids = parse_multi_account_config(self.config["TELEGRAM_CHAT_ID"])
 
@@ -318,8 +480,11 @@ class NotificationDispatcher:
                     batch_size=self.config.get("MESSAGE_BATCH_SIZE", 4000),
                     batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                     split_content_func=self.split_content_func,
-                    rss_items=rss_items,
-                    rss_new_items=rss_new_items,
+                    rss_items=rss_items if display_regions.get("RSS", True) else None,
+                    rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                    ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                    display_regions=display_regions,
+                    standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
                 )
                 results.append(result)
 
@@ -334,8 +499,15 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到 ntfy（多账号，需验证 topic 和 token 配对，支持热榜+RSS合并）"""
+        """发送到 ntfy（多账号，需验证 topic 和 token 配对，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         ntfy_server_url = self.config["NTFY_SERVER_URL"]
         ntfy_topics = parse_multi_account_config(self.config["NTFY_TOPIC"])
         ntfy_tokens = parse_multi_account_config(self.config.get("NTFY_TOKEN", ""))
@@ -372,8 +544,11 @@ class NotificationDispatcher:
                     account_label=account_label,
                     batch_size=3800,
                     split_content_func=self.split_content_func,
-                    rss_items=rss_items,
-                    rss_new_items=rss_new_items,
+                    rss_items=rss_items if display_regions.get("RSS", True) else None,
+                    rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                    ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                    display_regions=display_regions,
+                    standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
                 )
                 results.append(result)
 
@@ -388,8 +563,15 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到 Bark（多账号，支持热榜+RSS合并）"""
+        """发送到 Bark（多账号，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         return self._send_to_multi_accounts(
             channel_name="Bark",
             config_value=self.config["BARK_URL"],
@@ -404,8 +586,11 @@ class NotificationDispatcher:
                 batch_size=self.config.get("BARK_BATCH_SIZE", 3600),
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                 split_content_func=self.split_content_func,
-                rss_items=rss_items,
-                rss_new_items=rss_new_items,
+                rss_items=rss_items if display_regions.get("RSS", True) else None,
+                rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                display_regions=display_regions,
+                standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
             ),
         )
 
@@ -418,8 +603,15 @@ class NotificationDispatcher:
         mode: str,
         rss_items: Optional[List[Dict]] = None,
         rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
     ) -> bool:
-        """发送到 Slack（多账号，支持热榜+RSS合并）"""
+        """发送到 Slack（多账号，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
         return self._send_to_multi_accounts(
             channel_name="Slack",
             config_value=self.config["SLACK_WEBHOOK_URL"],
@@ -434,17 +626,86 @@ class NotificationDispatcher:
                 batch_size=self.config.get("SLACK_BATCH_SIZE", 4000),
                 batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
                 split_content_func=self.split_content_func,
-                rss_items=rss_items,
-                rss_new_items=rss_new_items,
+                rss_items=rss_items if display_regions.get("RSS", True) else None,
+                rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                display_regions=display_regions,
+                standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
             ),
         )
+
+    def _send_generic_webhook(
+        self,
+        report_data: Dict,
+        report_type: str,
+        update_info: Optional[Dict],
+        proxy_url: Optional[str],
+        mode: str,
+        rss_items: Optional[List[Dict]] = None,
+        rss_new_items: Optional[List[Dict]] = None,
+        ai_analysis: Optional[AIAnalysisResult] = None,
+        display_regions: Optional[Dict] = None,
+        standalone_data: Optional[Dict] = None,
+    ) -> bool:
+        """发送到通用 Webhook（多账号，支持热榜+RSS合并+AI分析+独立展示区）"""
+        display_regions = display_regions or {}
+        if not display_regions.get("HOTLIST", True):
+            report_data = {"stats": [], "failed_ids": [], "new_titles": [], "id_to_name": {}}
+
+        urls = parse_multi_account_config(self.config.get("GENERIC_WEBHOOK_URL", ""))
+        templates = parse_multi_account_config(self.config.get("GENERIC_WEBHOOK_TEMPLATE", ""))
+
+        if not urls:
+            return False
+
+        urls = limit_accounts(urls, self.max_accounts, "通用Webhook")
+        results = []
+
+        for i, url in enumerate(urls):
+            if not url:
+                continue
+
+            template = ""
+            if templates:
+                if i < len(templates):
+                    template = templates[i]
+                elif len(templates) == 1:
+                    template = templates[0] # 共用一个模板
+
+            account_label = f"账号{i+1}" if len(urls) > 1 else ""
+
+            result = send_to_generic_webhook(
+                webhook_url=url,
+                payload_template=template,
+                report_data=report_data,
+                report_type=report_type,
+                update_info=update_info,
+                proxy_url=proxy_url,
+                mode=mode,
+                account_label=account_label,
+                batch_size=self.config.get("MESSAGE_BATCH_SIZE", 4000),
+                batch_interval=self.config.get("BATCH_SEND_INTERVAL", 1.0),
+                split_content_func=self.split_content_func,
+                rss_items=rss_items if display_regions.get("RSS", True) else None,
+                rss_new_items=rss_new_items if display_regions.get("RSS", True) else None,
+                ai_analysis=ai_analysis if display_regions.get("AI_ANALYSIS", True) else None,
+                display_regions=display_regions,
+                standalone_data=standalone_data if display_regions.get("STANDALONE", False) else None,
+            )
+            results.append(result)
+
+        return any(results) if results else False
 
     def _send_email(
         self,
         report_type: str,
         html_file_path: Optional[str],
     ) -> bool:
-        """发送邮件（保持原有逻辑，已支持多收件人）"""
+        """发送邮件（保持原有逻辑，已支持多收件人）
+
+        Note:
+            AI 分析内容已在 HTML 生成时嵌入，无需在此传递
+        """
         return send_to_email(
             from_email=self.config["EMAIL_FROM"],
             password=self.config["EMAIL_PASSWORD"],

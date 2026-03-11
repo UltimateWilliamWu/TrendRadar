@@ -27,6 +27,9 @@ class NewsItem:
     first_time: str = ""                # 首次出现时间
     last_time: str = ""                 # 最后出现时间
     count: int = 1                      # 出现次数
+    rank_timeline: List[Dict[str, Any]] = field(default_factory=list)  # 完整排名时间线
+                                        # 格式: [{"time": "09:30", "rank": 1}, {"time": "10:00", "rank": 2}, ...]
+                                        # None 表示脱榜: [{"time": "11:00", "rank": None}]
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -42,6 +45,7 @@ class NewsItem:
             "first_time": self.first_time,
             "last_time": self.last_time,
             "count": self.count,
+            "rank_timeline": self.rank_timeline,
         }
 
     @classmethod
@@ -59,6 +63,7 @@ class NewsItem:
             first_time=data.get("first_time", ""),
             last_time=data.get("last_time", ""),
             count=data.get("count", 1),
+            rank_timeline=data.get("rank_timeline", []),
         )
 
 
@@ -430,34 +435,35 @@ class StorageBackend(ABC):
         """
         pass
 
-    # === 推送记录相关方法 ===
+    # === 时间段执行记录（调度系统）===
 
-    @abstractmethod
-    def has_pushed_today(self, date: Optional[str] = None) -> bool:
+    def has_period_executed(self, date_str: str, period_key: str, action: str) -> bool:
         """
-        检查指定日期是否已推送过
+        检查指定时间段的某个 action 是否已执行
 
         Args:
-            date: 日期字符串（YYYY-MM-DD），默认为今天
+            date_str: 日期字符串 YYYY-MM-DD
+            period_key: 时间段 key
+            action: 动作类型 (analyze / push)
 
         Returns:
-            是否已推送
+            是否已执行
         """
-        pass
+        return False
 
-    @abstractmethod
-    def record_push(self, report_type: str, date: Optional[str] = None) -> bool:
+    def record_period_execution(self, date_str: str, period_key: str, action: str) -> bool:
         """
-        记录推送
+        记录时间段的 action 执行
 
         Args:
-            report_type: 报告类型
-            date: 日期字符串（YYYY-MM-DD），默认为今天
+            date_str: 日期字符串 YYYY-MM-DD
+            period_key: 时间段 key
+            action: 动作类型 (analyze / push)
 
         Returns:
             是否记录成功
         """
-        pass
+        return False
 
 
 def convert_crawl_results_to_news_data(
@@ -487,15 +493,9 @@ def convert_crawl_results_to_news_data(
         news_list = []
 
         for title, data in titles_data.items():
-            if isinstance(data, dict):
-                ranks = data.get("ranks", [])
-                url = data.get("url", "")
-                mobile_url = data.get("mobileUrl", "")
-            else:
-                # 兼容旧格式
-                ranks = data if isinstance(data, list) else []
-                url = ""
-                mobile_url = ""
+            ranks = data.get("ranks", [])
+            url = data.get("url", "")
+            mobile_url = data.get("mobileUrl", "")
 
             rank = ranks[0] if ranks else 99
 
@@ -523,39 +523,3 @@ def convert_crawl_results_to_news_data(
         id_to_name=id_to_name,
         failed_ids=failed_ids,
     )
-
-
-def convert_news_data_to_results(data: NewsData) -> tuple:
-    """
-    将 NewsData 转换回原有的 results 格式（用于兼容现有代码）
-
-    Args:
-        data: NewsData 对象
-
-    Returns:
-        (results, id_to_name, title_info) 元组
-    """
-    results = {}
-    title_info = {}
-
-    for source_id, news_list in data.items.items():
-        results[source_id] = {}
-        title_info[source_id] = {}
-
-        for item in news_list:
-            results[source_id][item.title] = {
-                "ranks": item.ranks,
-                "url": item.url,
-                "mobileUrl": item.mobile_url,
-            }
-
-            title_info[source_id][item.title] = {
-                "first_time": item.first_time,
-                "last_time": item.last_time,
-                "count": item.count,
-                "ranks": item.ranks,
-                "url": item.url,
-                "mobileUrl": item.mobile_url,
-            }
-
-    return results, data.id_to_name, title_info
