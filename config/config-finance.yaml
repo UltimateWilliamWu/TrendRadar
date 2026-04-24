@@ -58,6 +58,7 @@ rss:
     - id: "xinhua-finance"
       name: "新华网财经"
       url: "https://www.news.cn/fortune/news_fortune.xml"
+      enabled: false
     - id: "nbs-latest"
       name: "国家统计局-最新发布"
       url: "https://www.stats.gov.cn/sj/zxfb/rss.xml"

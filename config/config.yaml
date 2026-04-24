@@ -144,6 +144,7 @@ rss:
     - id: "xinhua-finance"
       name: "新华网财经"
       url: "https://www.news.cn/fortune/news_fortune.xml"
+      enabled: false                  # 该 RSS 实测内容长期停留在 2022 年，默认禁用
 
     - id: "nbs-latest"
       name: "国家统计局-最新发布"
