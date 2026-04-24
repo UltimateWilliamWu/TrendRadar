@@ -432,6 +432,9 @@ def count_word_frequency(
     group_key_to_display_name = {
         group["group_key"]: group.get("display_name") for group in word_groups
     }
+    group_key_to_section = {
+        group["group_key"]: group.get("section", "main") for group in word_groups
+    }
 
     for group_key, data in word_stats.items():
         all_titles = []
@@ -465,6 +468,7 @@ def count_word_frequency(
                 "word": display_word,
                 "count": data["count"],
                 "position": group_key_to_position.get(group_key, 999),
+                "section": group_key_to_section.get(group_key, "main"),
                 "titles": sorted_titles,
                 "percentage": (
                     round(data["count"] / total_titles * 100, 2)
@@ -667,6 +671,9 @@ def count_rss_frequency(
     group_key_to_display_name = {
         group["group_key"]: group.get("display_name") for group in word_groups
     }
+    group_key_to_section = {
+        group["group_key"]: group.get("section", "main") for group in word_groups
+    }
 
     for group_key, data in word_stats.items():
         if data["count"] == 0:
@@ -692,6 +699,7 @@ def count_rss_frequency(
             "word": display_word,
             "count": data["count"],
             "position": group_key_to_position.get(group_key, 999),
+            "section": group_key_to_section.get(group_key, "main"),
             "titles": sorted_titles,
             "percentage": round(data["count"] / total_items * 100, 2) if total_items > 0 else 0,
         })

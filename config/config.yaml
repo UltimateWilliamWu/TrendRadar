@@ -77,18 +77,8 @@ platforms:
       name: "快讯通"
     - id: "thepaper"
       name: "澎湃新闻"
-    - id: "bilibili-hot-search"
-      name: "bilibili 热搜"
     - id: "ifeng"
       name: "凤凰网"
-    - id: "tieba"
-      name: "贴吧"
-    - id: "weibo"
-      name: "微博"
-    - id: "douyin"
-      name: "抖音"
-    - id: "zhihu"
-      name: "知乎"
 
 
 # ===============================================================
@@ -127,6 +117,7 @@ rss:
     - id: "hacker-news"
       name: "Hacker News"
       url: "https://hnrss.org/frontpage"
+      enabled: false                  # 关闭泛科技 RSS，避免偏离金融/时事主线
 
     - id: "ruanyifeng"
       name: "阮一峰的网络日志"

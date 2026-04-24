@@ -185,9 +185,15 @@ def load_frequency_words(
         group_required_words = []
         group_normal_words = []
         group_max_count = 0  # 默认不限制
+        group_section = "main"
 
         for word in words:
             if word.startswith("@"):
+                if word.lower().startswith("@section"):
+                    parts = word.split(None, 1)
+                    if len(parts) == 2 and parts[1].strip():
+                        group_section = parts[1].strip().lower()
+                    continue
                 # 解析最大显示数量（只接受正整数）
                 try:
                     count = int(word[1:])
@@ -237,6 +243,7 @@ def load_frequency_words(
                     "group_key": group_key,
                     "display_name": display_name,  # 可能为 None
                     "max_count": group_max_count,
+                    "section": group_section,
                 }
             )
 

@@ -768,6 +768,61 @@ def render_html_content(
                 font-size: 14px;
             }
 
+            .company-section {
+                margin-top: 32px;
+                padding-top: 24px;
+                border-top: 1px solid #f0f0f0;
+            }
+
+            .company-section-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 20px;
+            }
+
+            .company-section-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #0f766e;
+            }
+
+            .company-section-count {
+                color: #6b7280;
+                font-size: 14px;
+            }
+
+            .company-groups-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .company-group {
+                margin-bottom: 0;
+            }
+
+            .company-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+
+            .company-name {
+                font-size: 17px;
+                font-weight: 600;
+                color: #1a1a1a;
+            }
+
+            .company-count {
+                color: #666;
+                font-size: 13px;
+                font-weight: 500;
+            }
+
             .standalone-group {
                 margin-bottom: 40px;
             }
@@ -910,6 +965,9 @@ def render_html_content(
                 gap: 24px;
             }
             body.wide-mode .standalone-group { margin-bottom: 0; }
+            body.wide-mode .company-groups-grid {
+                grid-template-columns: 1fr 1fr;
+            }
 
             /* Tab 栏 */
             .tab-bar {
@@ -1174,6 +1232,16 @@ def render_html_content(
             body.dark-mode .standalone-item a {
                 color: #8ab4f8;
             }
+            body.dark-mode .company-section,
+            body.dark-mode .company-header {
+                border-color: #2a2a4a;
+            }
+            body.dark-mode .company-name {
+                color: #f3f4f6;
+            }
+            body.dark-mode .company-section-title {
+                color: #5eead4;
+            }
             body.dark-mode .ai-block {
                 background: #1a1a3e;
                 border-color: #2a2a4a;
@@ -1326,24 +1394,31 @@ def render_html_content(
                 </div>"""
 
     # 生成热点词汇统计部分的HTML
+    all_stats = report_data.get("stats", [])
+    hotlist_stats = [
+        stat for stat in all_stats if str(stat.get("section", "main")).lower() != "company"
+    ]
+    company_stats = [
+        stat for stat in all_stats if str(stat.get("section", "main")).lower() == "company"
+    ]
+
     stats_html = ""
     tab_bar_html = ""
-    if report_data["stats"]:
-        total_count = len(report_data["stats"])
+    if hotlist_stats:
+        total_count = len(hotlist_stats)
 
         # 生成 Tab 栏 HTML
         tab_bar_html = '<div class="tab-bar">'
-        for tab_i, tab_stat in enumerate(report_data["stats"]):
+        for tab_i, tab_stat in enumerate(hotlist_stats):
             escaped_tab_word = html_escape(tab_stat["word"])
             tab_count = tab_stat["count"]
             tab_bar_html += f'<button class="tab-btn" data-tab-index="{tab_i}">{escaped_tab_word}<span class="tab-count">{tab_count}</span></button>'
         tab_bar_html += '<button class="tab-btn" data-tab-index="all">全部</button>'
         tab_bar_html += '</div>'
 
-        for i, stat in enumerate(report_data["stats"], 1):
+        for i, stat in enumerate(hotlist_stats, 1):
             count = stat["count"]
 
-            # 确定热度等级
             if count >= 10:
                 count_class = "hot"
             elif count >= 5:
@@ -1363,7 +1438,6 @@ def render_html_content(
                         <div class="word-index"><span class="collapse-icon">▼</span>{i}/{total_count}</div>
                     </div>"""
 
-            # 处理每个词组下的新闻标题，给每条新闻标上序号
             for j, title_data in enumerate(stat["titles"], 1):
                 is_new = title_data.get("is_new", False)
                 new_class = "new" if is_new else ""
@@ -1374,24 +1448,19 @@ def render_html_content(
                         <div class="news-content">
                             <div class="news-header">"""
 
-                # 根据 display_mode 决定显示来源还是关键词
                 if display_mode == "keyword":
-                    # keyword 模式：显示来源
                     stats_html += f'<span class="source-name">{html_escape(title_data["source_name"])}</span>'
                 else:
-                    # platform 模式：显示关键词
                     matched_keyword = title_data.get("matched_keyword", "")
                     if matched_keyword:
                         stats_html += f'<span class="keyword-tag">[{html_escape(matched_keyword)}]</span>'
 
-                # 处理排名显示
                 ranks = title_data.get("ranks", [])
                 if ranks:
                     min_rank = min(ranks)
                     max_rank = max(ranks)
                     rank_threshold = title_data.get("rank_threshold", 10)
 
-                    # 确定排名等级
                     if min_rank <= 3:
                         rank_class = "top"
                     elif min_rank <= rank_threshold:
@@ -1399,27 +1468,18 @@ def render_html_content(
                     else:
                         rank_class = ""
 
-                    if min_rank == max_rank:
-                        rank_text = str(min_rank)
-                    else:
-                        rank_text = f"{min_rank}-{max_rank}"
-
+                    rank_text = str(min_rank) if min_rank == max_rank else f"{min_rank}-{max_rank}"
                     stats_html += f'<span class="rank-num {rank_class}">{rank_text}</span>'
 
-                # 处理时间显示
                 time_display = title_data.get("time_display", "")
                 if time_display:
-                    # 简化时间显示格式，将波浪线替换为~
                     simplified_time = (
                         time_display.replace(" ~ ", "~")
                         .replace("[", "")
                         .replace("]", "")
                     )
-                    stats_html += (
-                        f'<span class="time-info">{html_escape(simplified_time)}</span>'
-                    )
+                    stats_html += f'<span class="time-info">{html_escape(simplified_time)}</span>'
 
-                # 处理出现次数
                 count_info = title_data.get("count", 1)
                 if count_info > 1:
                     stats_html += f'<span class="count-info">{count_info}次</span>'
@@ -1428,7 +1488,6 @@ def render_html_content(
                             </div>
                             <div class="news-title">"""
 
-                # 处理标题和链接
                 escaped_title = html_escape(title_data["title"])
                 link_url = title_data.get("mobile_url") or title_data.get("url", "")
 
@@ -1446,8 +1505,113 @@ def render_html_content(
             stats_html += """
                 </div>"""
 
+    def render_company_tracking_html(stats: List[Dict]) -> str:
+        """渲染公司跟踪区，将公司级新闻从主榜拆分出来。"""
+        if not stats:
+            return ""
+
+        total_count = sum(stat.get("count", 0) for stat in stats)
+        if total_count == 0:
+            return ""
+
+        company_html = f"""
+                <div class="company-section">
+                    <div class="company-section-header">
+                        <div class="company-section-title">公司跟踪</div>
+                        <div class="company-section-count">{total_count} 条</div>
+                    </div>
+                    <div class="company-groups-grid">"""
+
+        for stat in stats:
+            company_name = stat.get("word", "")
+            titles = stat.get("titles", [])
+            if not titles:
+                continue
+
+            company_html += f"""
+                    <div class="company-group">
+                        <div class="company-header">
+                            <div class="company-name">{html_escape(company_name)}</div>
+                            <div class="company-count">{len(titles)} 条</div>
+                        </div>"""
+
+            for j, title_data in enumerate(titles, 1):
+                is_new = title_data.get("is_new", False)
+                new_class = "new" if is_new else ""
+
+                company_html += f"""
+                        <div class="news-item {new_class}">
+                            <div class="news-number">{j}</div>
+                            <div class="news-content">
+                                <div class="news-header">"""
+
+                if display_mode == "keyword":
+                    company_html += f'<span class="source-name">{html_escape(title_data["source_name"])}</span>'
+                else:
+                    matched_keyword = title_data.get("matched_keyword", "")
+                    if matched_keyword:
+                        company_html += f'<span class="keyword-tag">[{html_escape(matched_keyword)}]</span>'
+
+                ranks = title_data.get("ranks", [])
+                if ranks:
+                    min_rank = min(ranks)
+                    max_rank = max(ranks)
+                    rank_threshold = title_data.get("rank_threshold", 10)
+
+                    if min_rank <= 3:
+                        rank_class = "top"
+                    elif min_rank <= rank_threshold:
+                        rank_class = "high"
+                    else:
+                        rank_class = ""
+
+                    rank_text = str(min_rank) if min_rank == max_rank else f"{min_rank}-{max_rank}"
+                    company_html += f'<span class="rank-num {rank_class}">{rank_text}</span>'
+
+                time_display = title_data.get("time_display", "")
+                if time_display:
+                    simplified_time = (
+                        time_display.replace(" ~ ", "~")
+                        .replace("[", "")
+                        .replace("]", "")
+                    )
+                    company_html += f'<span class="time-info">{html_escape(simplified_time)}</span>'
+
+                count_info = title_data.get("count", 1)
+                if count_info > 1:
+                    company_html += f'<span class="count-info">{count_info}次</span>'
+
+                company_html += """
+                                </div>
+                                <div class="news-title">"""
+
+                escaped_title = html_escape(title_data["title"])
+                link_url = title_data.get("mobile_url") or title_data.get("url", "")
+                if link_url:
+                    escaped_url = html_escape(link_url)
+                    company_html += f'<a href="{escaped_url}" target="_blank" class="news-link">{escaped_title}</a>'
+                else:
+                    company_html += escaped_title
+
+                company_html += """
+                                </div>
+                            </div>
+                        </div>"""
+
+            company_html += """
+                    </div>"""
+
+        company_html += """
+                    </div>
+                </div>"""
+        return company_html
+
+    company_tracking_html = render_company_tracking_html(company_stats)
+    if company_tracking_html:
+        stats_html += company_tracking_html
+
     # 给热榜统计添加外层包装
-    if stats_html:
+    if tab_bar_html or stats_html:
         stats_html = f"""
                 <div class="hotlist-section">{tab_bar_html}{stats_html}
                 </div>"""

@@ -1,0 +1,89 @@
+# Finance-focused keyword groups for TrendRadar
+# Main section: finance, macro, policy, geopolitics
+# Company section: tracked firms rendered in a dedicated HTML area
+
+[GLOBAL_FILTER]
+震惊
+演唱会
+综艺
+票房
+胖东来
+月球
+航天
+火箭
+卫星
+宇航员
+
+[WORD_GROUPS]
+
+[中国宏观]
+/财政部|央行|中国人民银行|证监会|金融监管总局|外汇局|国常会|国务院|财政政策|货币政策|专项债|地方债|社融|M1|M2|LPR|MLF|逆回购|CPI|PPI|PMI|进出口|外贸|房地产政策/
+@8
+
+[美国宏观]
+/美联储|鲍威尔|FOMC|非农|PCE|CPI|PPI|GDP|ISM|初请失业金|联邦基金利率|美债|美国国债|美元指数|收益率曲线/
+@8
+
+[汇率/利率/商品]
+/人民币汇率|离岸人民币|在岸人民币|美元指数|美债收益率|十年期美债|原油|WTI|布伦特|油价|金价|黄金|白银|铜价|天然气/
+@8
+
+[中国市场]
+/A股|上证指数|沪指|深成指|创业板|科创板|北证50|沪深300|中证1000|港股|恒生指数|恒生科技|北向资金|南向资金|ETF/
+@8
+
+[美国市场]
+/美股|纳指|纳斯达克|道指|标普500|标普|中概股|罗素2000|VIX/
+@8
+
+[资本市场]
+/IPO|再融资|定增|回购|减持|并购|可转债|配股|国债拍卖|公司债|REITs|融资融券/
+@6
+
+[行业主题]
+/半导体|芯片|AI算力|服务器|云计算|光伏|储能|锂电|新能源车|消费电子|创新药|CXO/
+@6
+
+[地缘时事]
+/中东|伊朗|以色列|霍尔木兹|红海|俄乌|俄罗斯|乌克兰|关税|贸易战|出口管制|制裁|稀土|停火|谈判/
+@8
+
+[英伟达]
+@section company
+/英伟达|黄仁勋|\bNVIDIA\b|\bGeForce\b|\bCUDA\b|\bRTX\b|\bJensen Huang\b/
+@5
+
+[AMD]
+@section company
+/苏姿丰|锐龙|霄龙|\bAMD\b|\bRyzen\b|\bEPYC\b|\bRadeon\b|\bLisa Su\b/
+@5
+
+[微软]
+@section company
+/微软|\bMicrosoft\b|\bWindows\b|\bAzure\b|\bSatya Nadella\b|\bCopilot\b/
+@5
+
+[谷歌]
+@section company
+/谷歌|安卓|皮查伊|\bGoogle\b|\bAlphabet\b|\bAndroid\b|\bChrome\b|\bYouTube\b|\bGemini\b|\bDeepMind\b|\bWaymo\b/
+@5
+
+[苹果]
+@section company
+/苹果|库克|\biPhone\b|\biPad\b|\bMacBook\b|\biOS\b|\bVision Pro\b|\bAirPods\b|\bApple\b|\bTim Cook\b/
+@5
+
+[特斯拉]
+@section company
+/特斯拉|马斯克|\bTesla\b|\bElon Musk\b|\bCybertruck\b|\bModel 3\b|\bModel Y\b|\bModel S\b|\bModel X\b|\bFSD\b/
+@5
+
+[华为]
+@section company
+/华为|任正非|余承东|鸿蒙|海思|昇腾|鲲鹏|\bHUAWEI\b|\bHarmonyOS\b|\bHiSilicon\b/
+@5
+
+[OpenAI]
+@section company
+/\bOpenAI\b|\bChatGPT\b|\bSora\b|\bDALL-E\b|\bSam Altman\b|\bGreg Brockman\b/
+@5
