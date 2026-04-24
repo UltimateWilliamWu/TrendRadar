@@ -129,6 +129,30 @@ rss:
       name: "雅虎财经"
       url: "https://finance.yahoo.com/news/rssindex"
 
+    - id: "fed-monetary-policy"
+      name: "美联储货币政策"
+      url: "https://www.federalreserve.gov/feeds/press_monetary.xml"
+
+    - id: "sec-press-releases"
+      name: "SEC 新闻稿"
+      url: "https://www.sec.gov/news/pressreleases.rss"
+
+    - id: "chinanews-finance"
+      name: "中新网财经"
+      url: "https://www.chinanews.com.cn/rss/finance.xml"
+
+    - id: "xinhua-finance"
+      name: "新华网财经"
+      url: "https://www.news.cn/fortune/news_fortune.xml"
+
+    - id: "nbs-latest"
+      name: "国家统计局-最新发布"
+      url: "https://www.stats.gov.cn/sj/zxfb/rss.xml"
+
+    - id: "nbs-interpretation"
+      name: "国家统计局-数据解读"
+      url: "https://www.stats.gov.cn/sj/sjjd/rss.xml"
+
     # 自定义源示例
     # - id: "custom-feed"
     #   name: "自定义源"
