@@ -137,6 +137,18 @@ rss:
       name: "SEC 新闻稿"
       url: "https://www.sec.gov/news/pressreleases.rss"
 
+    - id: "bls-latest"
+      name: "BLS Latest Numbers"
+      url: "https://www.bls.gov/feed/bls_latest.rss"
+
+    - id: "bls-cpi"
+      name: "美国CPI"
+      url: "https://www.bls.gov/feed/cpi.rss"
+
+    - id: "bls-ppi"
+      name: "美国PPI"
+      url: "https://www.bls.gov/feed/ppi.rss"
+
     - id: "chinanews-finance"
       name: "中新网财经"
       url: "https://www.chinanews.com.cn/rss/finance.xml"
@@ -548,6 +560,15 @@ ai_analysis:
         snippet_max_chars: 700
       - id: "sec-press-releases"
         type: "regulatory"
+        snippet_max_chars: 700
+      - id: "bls-latest"
+        type: "macro"
+        snippet_max_chars: 520
+      - id: "bls-cpi"
+        type: "macro"
+        snippet_max_chars: 700
+      - id: "bls-ppi"
+        type: "macro"
         snippet_max_chars: 700
       - id: "yahoo-finance"
         type: "company"
