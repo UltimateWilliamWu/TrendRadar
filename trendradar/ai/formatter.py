@@ -28,22 +28,61 @@ def _format_list_content(text: str) -> str:
     # 去除首尾空白，防止 AI 返回的内容开头就有换行导致显示空行
     text = text.strip()
 
+    # 预清洗：处理模型常见的格式噪声
+    lines = [line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    cleaned_lines = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+
+        # 删除孤立编号行，例如单独一行 "1)"
+        if re.match(r'^\d+[.)]\s*$', line):
+            i += 1
+            continue
+
+        # 合并被拆坏的标签：
+        # 【市场主线1】
+        # 【: 中东...】
+        broken_label_match = re.match(r'^【([^】]+)】$', line)
+        broken_content_match = re.match(r'^【[:：]\s*(.+)】$', next_line)
+        if broken_label_match and broken_content_match:
+            cleaned_lines.append(f"【{broken_label_match.group(1)}】 {broken_content_match.group(1)}")
+            i += 2
+            continue
+
+        # 修复单独的残缺标签内容：【: xxx】 -> xxx
+        line = re.sub(r'^【[:：]\s*(.+)】$', r'\1', line)
+
+        # 去掉行尾漂移出来的编号碎片，例如 "... 证据强度：强。 2)"
+        line = re.sub(r'\s+\d+[)]\s*$', '', line)
+
+        cleaned_lines.append(line)
+        i += 1
+
+    text = "\n".join(line for line in cleaned_lines if line)
+
     # 0. 合并序号与紧随的【标签】（防御性处理）
     # 将 "1.\n【投资者】：" 或 "1. 【投资者】：" 合并为 "1. 投资者："
     text = re.sub(r'(\d+\.)\s*【([^】]+)】([:：]?)', r'\1 \2：', text)
+    text = re.sub(r'(\d+\))\s*【([^】]+)】([:：]?)', r'\1 \2：', text)
 
     # 1. 规范化：确保 "1." 后面有空格
     result = re.sub(r'(\d+)\.([^ \d])', r'\1. \2', text)
+    result = re.sub(r'(\d+)\)([^ \d])', r'\1) \2', result)
 
     # 2. 强制换行：匹配 "数字."，且前面不是换行符
     #    (?!\d) 排除版本号/小数（如 2.0、3.5），避免将其误判为列表序号
     result = re.sub(r'(?<=[^\n])\s+(\d+\.)(?!\d)', r'\n\1', result)
+    result = re.sub(r'(?<=[^\n])\s+(\d+\))(?!\d)', r'\n\1', result)
     
     # 3. 处理 "1.**粗体**" 这种情况（虽然 Prompt 要求不输出 Markdown，但防御性处理）
     result = re.sub(r'(?<=[^\n])(\d+\.\*\*)', r'\n\1', result)
+    result = re.sub(r'(?<=[^\n])(\d+\)\*\*)', r'\n\1', result)
 
     # 4. 处理中文标点后的换行（排除版本号/小数）
     result = re.sub(r'([：:;,。；，])\s*(\d+\.)(?!\d)', r'\1\n\2', result)
+    result = re.sub(r'([：:;,。；，])\s*(\d+\))(?!\d)', r'\1\n\2', result)
 
     # 5. 处理 "XX方面："、"XX领域：" 等子标题换行
     # 只有在中文标点（句号、逗号、分号等）后才触发换行，避免破坏 "1. XX领域：" 格式
@@ -61,6 +100,10 @@ def _format_list_content(text: str) -> str:
     # 7. 在列表项之间增加视觉空行（排除版本号/小数）
     # 排除 【标签】 行（以】结尾）和子标题行（以冒号结尾）之后的情况，避免标题与首项之间出现空行
     result = re.sub(r'(?<![:：】])\n(\d+\.)(?!\d)', r'\n\n\1', result)
+    result = re.sub(r'(?<![:：】])\n(\d+\))(?!\d)', r'\n\n\1', result)
+
+    # 8. 收尾清洗，避免多余空行
+    result = re.sub(r'\n{3,}', r'\n\n', result).strip()
 
     return result
 
