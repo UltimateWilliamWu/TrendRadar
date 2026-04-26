@@ -285,6 +285,7 @@ def _load_ai_config(config_data: Dict) -> Dict:
 def _load_ai_analysis_config(config_data: Dict) -> Dict:
     """加载 AI 分析配置（功能配置，模型配置见 _load_ai_config）"""
     ai_config = config_data.get("ai_analysis", {})
+    rss_enrichment = ai_config.get("rss_enrichment", {})
 
     enabled_env = _get_env_bool("AI_ANALYSIS_ENABLED")
 
@@ -295,8 +296,19 @@ def _load_ai_analysis_config(config_data: Dict) -> Dict:
         "MODE": ai_config.get("mode", "follow_report"),
         "MAX_NEWS_FOR_ANALYSIS": ai_config.get("max_news_for_analysis", 50),
         "INCLUDE_RSS": ai_config.get("include_rss", True),
+        "INCLUDE_RSS_SUMMARY": ai_config.get("include_rss_summary", True),
+        "RSS_SUMMARY_MAX_CHARS": int(ai_config.get("rss_summary_max_chars", 180) or 180),
         "INCLUDE_RANK_TIMELINE": ai_config.get("include_rank_timeline", False),
         "INCLUDE_STANDALONE": ai_config.get("include_standalone", False),
+        "RSS_ENRICHMENT": {
+            "ENABLED": rss_enrichment.get("enabled", True),
+            "MAX_ITEMS": int(rss_enrichment.get("max_items", 8) or 8),
+            "DEFAULT_SNIPPET_MAX_CHARS": int(
+                rss_enrichment.get("default_snippet_max_chars", 420) or 420
+            ),
+            "TIMEOUT": int(rss_enrichment.get("timeout", 12) or 12),
+            "SOURCES": rss_enrichment.get("sources", []),
+        },
     }
 
 

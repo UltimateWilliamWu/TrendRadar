@@ -7,9 +7,14 @@ AI 客户端模块
 """
 
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from litellm import completion
+
+try:
+    from litellm import token_counter as litellm_token_counter
+except Exception:  # pragma: no cover - optional helper
+    litellm_token_counter = None
 
 
 class AIClient:
@@ -38,6 +43,7 @@ class AIClient:
         self.timeout = config.get("TIMEOUT", 120)
         self.num_retries = config.get("NUM_RETRIES", 2)
         self.fallback_models = config.get("FALLBACK_MODELS", [])
+        self.last_usage: Dict[str, int] = {}
 
     def chat(
         self,
@@ -90,6 +96,7 @@ class AIClient:
 
         # 调用 LiteLLM
         response = completion(**params)
+        self.last_usage = self._extract_usage(response)
 
         # 提取响应内容
         # 某些模型/提供商返回 list（内容块）而非 str，统一转为 str
@@ -100,6 +107,51 @@ class AIClient:
                 for item in content
             )
         return content or ""
+
+    def estimate_tokens(self, messages: List[Dict[str, str]]) -> Optional[int]:
+        """Best-effort prompt token estimate before the API call."""
+        if litellm_token_counter is None:
+            return None
+
+        try:
+            return int(litellm_token_counter(model=self.model, messages=messages))
+        except Exception:
+            return None
+
+    def _extract_usage(self, response: Any) -> Dict[str, int]:
+        """Normalize LiteLLM usage fields across providers."""
+        usage = getattr(response, "usage", None)
+        if usage is None and isinstance(response, dict):
+            usage = response.get("usage")
+
+        if not usage:
+            return {}
+
+        def _read(obj: Any, *keys: str) -> Optional[int]:
+            for key in keys:
+                if hasattr(obj, key):
+                    value = getattr(obj, key)
+                    if value is not None:
+                        return int(value)
+                if isinstance(obj, dict) and key in obj and obj[key] is not None:
+                    return int(obj[key])
+            return None
+
+        prompt_tokens = _read(usage, "prompt_tokens", "input_tokens")
+        completion_tokens = _read(usage, "completion_tokens", "output_tokens")
+        total_tokens = _read(usage, "total_tokens")
+
+        result: Dict[str, int] = {}
+        if prompt_tokens is not None:
+            result["prompt_tokens"] = prompt_tokens
+        if completion_tokens is not None:
+            result["completion_tokens"] = completion_tokens
+        if total_tokens is not None:
+            result["total_tokens"] = total_tokens
+        elif prompt_tokens is not None and completion_tokens is not None:
+            result["total_tokens"] = prompt_tokens + completion_tokens
+
+        return result
 
     def validate_config(self) -> tuple[bool, str]:
         """

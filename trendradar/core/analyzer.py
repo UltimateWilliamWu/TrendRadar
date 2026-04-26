@@ -648,6 +648,7 @@ def count_rss_frequency(
 
                 title_data = {
                     "title": title,
+                    "feed_id": item.get("feed_id", ""),
                     "source_name": item.get("feed_name", item.get("feed_id", "RSS")),
                     "time_display": time_display,
                     "count": 1,  # RSS 条目通常只出现一次
@@ -655,6 +656,8 @@ def count_rss_frequency(
                     "rank_threshold": rank_threshold,
                     "url": url,
                     "mobile_url": "",
+                    "summary": item.get("summary", ""),
+                    "author": item.get("author", ""),
                     "is_new": is_new,
                 }
                 word_stats[group_key]["titles"].append(title_data)

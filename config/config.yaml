@@ -535,6 +535,26 @@ ai_analysis:
                                       # Docker 部署默认推送 48 次(每半小时推送一次)， 约 0.2 元/天
 
   include_rss: true                 # 是否包含 RSS 内容进行分析
+  include_rss_summary: true         # ??? RSS summary ???? AI
+  rss_summary_max_chars: 180        # ?? RSS summary ?? AI ??????
+  rss_enrichment:
+    enabled: true                   # ???????? RSS ???????
+    max_items: 8                    # ?? AI ????????? RSS
+    default_snippet_max_chars: 420  # ???????????
+    timeout: 12                     # ???????????
+    sources:
+      - id: "fed-monetary-policy"
+        type: "macro"
+        snippet_max_chars: 700
+      - id: "sec-press-releases"
+        type: "regulatory"
+        snippet_max_chars: 700
+      - id: "yahoo-finance"
+        type: "company"
+        snippet_max_chars: 420
+      - id: "chinanews-finance"
+        type: "macro"
+        snippet_max_chars: 480
   
   include_standalone: false         # 是否将独立展示区数据纳入 AI 分析
                                     # 数据源列表来自 display.standalone.platforms / display.standalone.rss_feeds
