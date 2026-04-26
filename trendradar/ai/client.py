@@ -95,7 +95,7 @@ class AIClient:
                 params[key] = value
 
         # 调用 LiteLLM
-        response = completion(**params)
+        response = self._completion_with_temperature_fallback(params)
         self.last_usage = self._extract_usage(response)
 
         # 提取响应内容
@@ -107,6 +107,38 @@ class AIClient:
                 for item in content
             )
         return content or ""
+
+    def _completion_with_temperature_fallback(self, params: Dict[str, Any]) -> Any:
+        """Retry once without `temperature` if the target model rejects it."""
+        try:
+            return completion(**params)
+        except Exception as exc:
+            if not self._supports_temperature_fallback(exc, params):
+                raise
+
+            retry_params = dict(params)
+            retry_params.pop("temperature", None)
+            print(
+                f"[AI] 模型 {self.model} 不支持自定义 temperature={params.get('temperature')}，"
+                "自动改为使用模型默认值重试"
+            )
+            return completion(**retry_params)
+
+    @staticmethod
+    def _supports_temperature_fallback(exc: Exception, params: Dict[str, Any]) -> bool:
+        """Detect provider/model errors that indicate `temperature` is unsupported."""
+        if "temperature" not in params:
+            return False
+
+        error_text = str(exc).lower()
+        indicators = (
+            "unsupported value: 'temperature'",
+            "unsupported parameter: temperature",
+            "temperature does not support",
+            "temperature is not supported",
+            "does not support temperature",
+        )
+        return any(indicator in error_text for indicator in indicators)
 
     def estimate_tokens(self, messages: List[Dict[str, str]]) -> Optional[int]:
         """Best-effort prompt token estimate before the API call."""
