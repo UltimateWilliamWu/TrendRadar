@@ -1517,7 +1517,7 @@ def render_html_content(
         company_html = f"""
                 <div class="company-section">
                     <div class="company-section-header">
-                        <div class="company-section-title">公司跟踪</div>
+                        <div class="company-section-title">公司展示区</div>
                         <div class="company-section-count">{total_count} 条</div>
                     </div>
                     <div class="company-groups-grid">"""
@@ -1607,8 +1607,6 @@ def render_html_content(
         return company_html
 
     company_tracking_html = render_company_tracking_html(company_stats)
-    if company_tracking_html:
-        stats_html += company_tracking_html
 
     # 给热榜统计添加外层包装
     if tab_bar_html or stats_html:
@@ -2088,6 +2086,12 @@ def render_html_content(
                 content = add_section_divider(content)
             html += content
             has_previous_content = True
+
+    if company_tracking_html:
+        if has_previous_content:
+            company_tracking_html = add_section_divider(company_tracking_html)
+        html += company_tracking_html
+        has_previous_content = True
 
     html += """
             </div>
