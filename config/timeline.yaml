@@ -183,8 +183,8 @@ presets:
         start: "20:00"
         end: "22:00"
         frequency_file: "finance_focus.txt"      # 金融/时事专用关键词文件
-        # interests_file: "xxx.txt"                # AI 兴趣文件（可选，位于 config/custom/ai/）
-        # filter_method: "keyword"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）
+        interests_file: "finance_research.txt"   # 晚间汇总切换到金融研究专用 AI 兴趣文件
+        filter_method: "ai"                      # 晚间汇总使用 AI 筛选，替代 keyword 分组
         analyze: true              # 晚间做 AI 分析
         ai_mode: "daily"           # AI 也汇总全天内容
         report_mode: "daily"       # 切换为当日全部新闻汇总
