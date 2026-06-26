@@ -3,13 +3,15 @@
 这是我基于 [sansan0/TrendRadar](https://github.com/sansan0/TrendRadar) 维护的金融新闻版仓库。
 目标不是做泛热点聚合，而是围绕宏观、市场、监管、产业链和重点公司，生成可长期运行的个人研究看板。
 
+**在线看板：<https://trend-radar-alpha-eight.vercel.app/>**（通过 Vercel 自动部署，每次抓取后自动更新）
+
 当前 README 反映的是本仓库 `master` 分支的实际状态，而不是上游默认说明。
 
 ## 1. 项目定位
 
 - 以金融新闻、宏观数据、监管口径和市场热榜为核心。
 - 默认同时保留一部分大众新闻源，用来观察宏观事件向舆论层扩散的速度。
-- 通过 GitHub Actions 定时抓取，通过 GitHub Pages 发布静态页面。
+- 通过 GitHub Actions 定时抓取，通过 Vercel 自动部署静态页面。
 - 在上游项目基础上，额外强化了金融关键词、AI 分析口径、RSS 输入质量和展示结构。
 
 ## 2. 当前主分支状态
@@ -18,7 +20,7 @@
 - 金融模板配置：[config/config-finance.yaml](config/config-finance.yaml)
 - 调度预设：`morning_evening`
 - GitHub Actions 定时：北京时间 `09:00 / 12:00 / 15:00 / 20:00`
-- GitHub Pages 部署入口：根目录 [index.html](index.html)
+- Vercel 部署入口：根目录 [index.html](index.html)（线上地址见文首）
 - 报告展示主模式：`keyword`
 - 筛选模式：`keyword`
 - RSS 新鲜度过滤：`3` 天
@@ -138,8 +140,8 @@ setup-windows.bat
 
 1. 抓取热榜和 RSS
 2. 生成 HTML / 文本 / 按日期归档
-3. 自动提交 [output](output) 和 [index.html](index.html)
-4. 触发 `Deploy Pages`
+3. 自动提交 [output](output) 和 [index.html](index.html) 回 `master`
+4. Vercel 检测到提交后自动重新部署
 
 ### 最小 AI Secrets
 
@@ -155,27 +157,23 @@ setup-windows.bat
 AI_MODEL = openai/gpt-5.4-mini
 ```
 
-## 6. GitHub Pages 与部署逻辑
+## 6. Vercel 部署逻辑
 
 工作流文件：
 
 - [.github/workflows/crawler.yml](.github/workflows/crawler.yml)
-- [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)
 
 当前部署逻辑：
 
-- `Get Hot News` 负责抓取、生成、归档、提交产物
-- `Deploy Pages` 负责把站点打包到 `_site`
-- Pages 主要发布这些内容：
-  - [index.html](index.html)
-  - [output/index.html](output/index.html)
-  - [output/html/latest/current.html](output/html/latest/current.html)
-  - [docs](docs)
+- `Get Hot News` 负责抓取、生成、归档，并把 [index.html](index.html) 和 [output](output) 提交回 `master`
+- Vercel 连接 `master` 分支，每次提交后自动重新部署
+- [.vercelignore](.vercelignore) 把体量庞大的 [output](output) 归档排除在部署之外，线上只发布自包含的根 [index.html](index.html)
 
 注意：
 
-- 根首页展示的是仓库根目录的 [index.html](index.html)
-- `daily.html` 会在本地产出，但当前 Pages 工作流没有单独把它作为公开入口复制出来
+- 线上展示的是仓库根目录的 [index.html](index.html)，它是自包含页面，不依赖 output/
+- 历史归档仍保存在仓库 [output](output) 里作为备份，但不通过 Vercel 对外发布
+- `daily.html` 会在本地产出，但当前不作为公开入口
 
 ## 7. 关键配置文件说明
 
@@ -204,7 +202,7 @@ TrendRadar/
 ├─ mcp_server/             # MCP Server 相关代码
 ├─ docs/                   # 上游文档和静态资源
 ├─ output/                 # 生成结果、RSS 存档、HTML 归档
-├─ index.html              # Pages 根入口页
+├─ index.html              # Vercel 根入口页
 ├─ pyproject.toml          # Python 项目定义
 ├─ uv.lock                 # uv 锁文件
 ├─ requirements.txt        # 兼容安装依赖
@@ -238,7 +236,7 @@ git merge upstream/master
 - [config/timeline.yaml](config/timeline.yaml)
 - [config/ai_analysis_prompt.txt](config/ai_analysis_prompt.txt)
 - [.github/workflows/crawler.yml](.github/workflows/crawler.yml)
-- [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)
+- [.vercelignore](.vercelignore)
 
 这些文件既容易被上游更新，也最容易承载你的本地定制。
 
