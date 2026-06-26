@@ -1,0 +1,4 @@
+# Exclude accumulated crawl archives from Vercel deployment.
+# These stay in the git repo as backups but are not published —
+# the self-contained root index.html is all the site needs.
+output/
