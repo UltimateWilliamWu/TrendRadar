@@ -81,22 +81,6 @@ jobs:
       - name: Save run date
         run: echo "RUN_DATE=$(date +%F)" >> "$GITHUB_ENV"
 
-      - name: Archive output by date
-        run: |
-          DEST="output/$RUN_DATE"
-          mkdir -p "$DEST"
-          for path in output/news output/rss output/html; do
-            if [ -d "$path" ]; then
-              cp -r "$path" "$DEST/"
-            fi
-          done
-          if [ -f output/index.html ]; then
-            cp output/index.html "$DEST/"
-          fi
-          if [ -f index.html ]; then
-            cp index.html "$DEST/"
-          fi
-
       - name: Commit and push output
         env:
           RUN_DATE: ${{ env.RUN_DATE }}

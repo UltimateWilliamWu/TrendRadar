@@ -1,0 +1,16 @@
+# 每日归档副本。
+#
+# crawler.yml 曾有一个 "Archive output by date" 步骤，每次运行都把
+# output/{news,rss,html} 整个复制进 output/<日期>/。而这三个目录本身是
+# 逐日累积的，于是第 N 天的副本约等于 N 天的数据，仓库体积呈平方增长：
+# 234 个归档目录 = 108,859 个文件 = 检出后 29.8 GB，其中独有内容仅 ~309 MB。
+#
+# GitHub 显示的仓库大小一直是 98 MB（git 对相同内容只存一份），但 Vercel
+# 构建时要把每个文件真实落盘，从 2026-08-17 起持续报
+# "Unable to unpack repo: not enough space on disk"，网站因此冻结在
+# 2026-08-16 20:40 那一版。该步骤已删除，此处防止它以任何形式回归。
+output/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Python
+__pycache__/
+*.py[cod]
