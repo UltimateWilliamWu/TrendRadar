@@ -1,6 +1,6 @@
 # ===============================================================
 #      TrendRadar AI Analysis Prompt - Research Focus
-#                       Version: 3.0.0
+#                       Version: 3.1.0
 # ===============================================================
 #
 # This prompt is optimized for macro + equity market research.
@@ -13,10 +13,12 @@
 #   {current_time}        - Current time
 #   {news_count}          - Hotlist news count
 #   {rss_count}           - RSS news count
+#   {search_count}        - Web search result count
 #   {keywords}            - Matched keywords
 #   {platforms}           - Source platforms
 #   {news_content}        - Hotlist news content
 #   {rss_content}         - RSS content
+#   {search_content}      - Web search results and summaries
 #   {standalone_content}  - Standalone source content
 #
 # ===============================================================
@@ -110,13 +112,17 @@
    - 优先写公司级催化、行业供需、政策补充、供应链变化。
    - 如果该来源投资相关性弱，可以直接说明“低投资相关，可忽略”。
 
+7. search_insights
+   - 按搜索主题提炼可能影响市场定价的政策、数据和公司进展，优先引用官方或公司披露。
+   - 结合热榜和 RSS 交叉核对，说明证据强度。无联网搜索数据时留空字符串。
+
 [user]
 请从股票市场投资分析视角处理以下热点新闻数据。热榜更偏情绪与关注度，RSS 更偏事实与专业增量。请优先回答“哪些信息可能影响市场定价”，而不是“哪些新闻最热”。
 
 ## 数据概览
 - 报告模式：{report_mode} ({report_type})
 - 分析时间：{current_time}
-- 数据量：{news_count}条热榜 + {rss_count}条RSS
+- 数据量：{news_count}条热榜 + {rss_count}条RSS + {search_count}条联网搜索结果
 - 来源：{platforms}
 
 ## 匹配关键词
@@ -127,6 +133,9 @@
 
 ## RSS 订阅
 {rss_content}
+
+## 联网搜索
+{search_content}
 
 ## 独立展示区
 以下为独立展示的完整热榜 / RSS 数据（不受关键词过滤），请按 standalone_summaries 的要求处理。
@@ -141,6 +150,7 @@
   "sentiment_controversy": "市场与舆论的预期差",
   "signals": "催化剂与弱信号",
   "rss_insights": "RSS 的硬信息增量",
+  "search_insights": "联网搜索的证据与市场影响",
   "outlook_strategy": "1. 指数与风格：... 2. 行业与主题：... 3. 个股与事件：... 4. 风险与证伪：...",
   "standalone_summaries": {"源名称": "补充概括"}
 }

@@ -24,6 +24,7 @@
 - 报告展示主模式：`keyword`
 - 筛选模式：`keyword`
 - RSS 新鲜度过滤：`3` 天
+- 程序版本：`6.12.0`，MCP 版本：`4.2.0`
 
 当前主分支为了验证 AI 研究输出，白天和手动运行也允许触发 AI 分析。
 如果后续要恢复成“只在晚间做一次 AI 总结”的省 token 模式，只需要回调 [config/timeline.yaml](config/timeline.yaml)。
@@ -73,21 +74,13 @@
 
 ## 4. AI 分析链路
 
-当前 AI 分析不是简单的“标题总结”，而是分层喂数：
+当前 AI 分析按来源组织输入：
 
 - 热榜：只保留标题、来源、排名轨迹、出现次数
-- 普通 RSS：标题 + 发布时间 + summary
-- 高价值 RSS：标题 + summary + 正文片段
+- RSS：来源、标题、发布时间
+- 联网搜索：启用后按主题提供搜索结果与摘要
 
-当前高价值 RSS 增强源包括：
-
-- 美联储货币政策
-- SEC 新闻稿
-- BLS Latest Numbers
-- 美国 CPI
-- 美国 PPI
-- 雅虎财经
-- 中新网财经
+金融配置保留了 RSS 摘要和正文增强选项，当前分析器尚未接入这两项。
 
 AI 分析相关配置：
 
@@ -101,13 +94,6 @@ AI 分析相关配置：
 - 明确区分宏观、行业、个股
 - 对重要判断尽量标注证据强弱
 - `signals` 和 `outlook_strategy` 尽量按 `日内 / 1周 / 1月` 分层
-
-GitHub Actions 日志里会打印 token 信息，便于估算成本：
-
-```text
-[AI] 输入: hotlist_used=... rss_used=... rss_summary=... rss_snippet=...
-[AI] Token usage: prompt=... completion=... total=...
-```
 
 ## 5. 快速开始
 
@@ -192,6 +178,19 @@ AI_MODEL = openai/gpt-5.4-mini
 - [config/ai_analysis_prompt.txt](config/ai_analysis_prompt.txt)
   当前研究口径提示词。
 
+- [config/search_queries.txt](config/search_queries.txt)
+  联网搜索任务，默认关闭。按需配置主题并打开 `web_search.enabled`。GitHub Actions 也支持通过仓库变量 `WEB_SEARCH_ENABLED=true` 开启，通过 `WEB_SEARCH_API_KEY` Secret 提供搜索密钥。
+
+### 可视化配置编辑器
+
+本地启动编辑器会载入此仓库的配置文件。编辑完成后可导出 YAML 和提示词。
+
+```bash
+cd editor
+npm ci
+npm run dev
+```
+
 ## 8. 当前仓库结构
 
 ```text
@@ -200,7 +199,7 @@ TrendRadar/
 ├─ config/                 # 主配置、金融模板、提示词、时间线
 ├─ trendradar/             # 抓取、分析、报告生成主程序
 ├─ mcp_server/             # MCP Server 相关代码
-├─ docs/                   # 上游文档和静态资源
+├─ editor/                 # 可视化配置编辑器
 ├─ output/                 # 生成结果、RSS 存档、HTML 归档
 ├─ index.html              # Vercel 根入口页
 ├─ pyproject.toml          # Python 项目定义
@@ -245,8 +244,7 @@ git merge upstream/master
 - 主运行配置尽量只维护一套稳定的 [config/config.yaml](config/config.yaml)
 - 新源先加到模板或单独分支验证，再进主配置
 - 先看数据源质量，再调 prompt；不要用 prompt 去硬补垃圾输入
-- AI 成本控制优先靠调度和输入分层，不要只靠缩短输出
-- 每次改 AI 逻辑后，先看 GitHub Actions 日志里的 token 使用情况
+- 通过调度和 `max_news_for_analysis` 控制 AI 输入和调用频率
 
 ## 致谢
 

@@ -14,3 +14,9 @@ output/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 # Python
 __pycache__/
 *.py[cod]
+
+# Local visual config editor dependencies and builds.
+/editor/node_modules/
+/editor/.vite/
+/editor/dist/
+/editor/dist-single/

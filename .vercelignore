@@ -2,3 +2,6 @@
 # These stay in the git repo as backups but are not published —
 # the self-contained root index.html is all the site needs.
 output/
+
+# The configuration editor is built separately from the news dashboard.
+editor/
